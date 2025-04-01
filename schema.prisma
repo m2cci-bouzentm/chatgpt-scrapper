@@ -1,0 +1,166 @@
+generator db {
+  provider             = "prisma-client-py"
+  interface            = "asyncio"
+  recursive_type_depth = "5"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = "postgresql://postgres:123456@localhost:5432/manga-db?schema=public"
+}
+
+model Category {
+  name          String          @id
+  MangaCategory MangaCategory[]
+}
+
+model Chapter {
+  id             Int       @id @default(autoincrement())
+  chapterNumber  Float
+  numberOfImages Int?
+  publishedDate  DateTime?
+  mangaId        Int
+  Manga          Manga     @relation(fields: [mangaId], references: [id], onDelete: Cascade)
+  Comment        Comment[]
+  Image          Image[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model Comment {
+  id              Int               @id @default(autoincrement())
+  content         String
+  date            DateTime
+  userId          Int
+  chapterId       Int?
+  mangaId         Int?
+  dislikesCount   Int               @default(0)
+  likesCount      Int               @default(0)
+  Chapter         Chapter?          @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  Manga           Manga?            @relation(fields: [mangaId], references: [id], onDelete: Cascade)
+  User            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  CommentReaction CommentReaction[]
+  Reply           Reply[]
+}
+
+model CommentReaction {
+  userId    Int
+  commentId Int
+  isLiked   Boolean
+  Comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  User      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, commentId])
+}
+
+model Favorite {
+  userId  Int
+  mangaId Int
+  Manga   Manga @relation(fields: [mangaId], references: [id], onDelete: Cascade)
+  User    User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, mangaId])
+}
+
+model Image {
+  id        Int     @id @default(autoincrement())
+  url       String
+  chapterId Int
+  order     Int
+  Chapter   Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+}
+
+model Manga {
+  id               Int             @id @default(autoincrement())
+  name             String          @unique
+  description      String
+  numberOfChapters Int?            @default(0)
+  thumbnailUrl     String
+  authors          String?
+  type             ScanType
+  status           Status          @default(ONGOING)
+  releaseYear      Int?
+  updatedAt        DateTime?       @default(dbgenerated("'1970-01-01 00:00:00'::timestamp without time zone"))
+  favoriteCount    Int             @default(0)
+  ratingCount      Int             @default(0)
+  ratingSum        Float           @default(0)
+  viewCount        Int             @default(0)
+  Chapter          Chapter[]
+  Comment          Comment[]
+  Favorite         Favorite[]
+  categories    MangaCategory[]
+  Rating           Rating[]
+}
+
+model MangaCategory {
+  categoryName String
+  mangaId      Int
+  Category     Category @relation(fields: [categoryName], references: [name])
+  Manga        Manga    @relation(fields: [mangaId], references: [id], onDelete: Cascade)
+
+  @@id([categoryName, mangaId])
+}
+
+model Rating {
+  userId    Int
+  mangaId   Int
+  createdAt DateTime @default(now())
+  score     Float
+  Manga     Manga    @relation(fields: [mangaId], references: [id], onDelete: Cascade)
+  User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, mangaId])
+}
+
+model Reply {
+  id            Int             @id @default(autoincrement())
+  content       String
+  date          DateTime
+  userId        Int
+  commentId     Int
+  dislikesCount Int             @default(0)
+  likesCount    Int             @default(0)
+  Comment       Comment         @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  User          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ReplyReaction ReplyReaction[]
+}
+
+model ReplyReaction {
+  userId  Int
+  replyId Int
+  isLiked Boolean
+  Reply   Reply   @relation(fields: [replyId], references: [id], onDelete: Cascade)
+  User    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, replyId])
+}
+
+model User {
+  id              Int               @id @default(autoincrement())
+  username        String            @unique
+  email           String            @unique
+  password        String?
+  role            Role              @default(USER)
+  profilePicUrl   String?
+  Comment         Comment[]
+  CommentReaction CommentReaction[]
+  Favorite        Favorite[]
+  Rating          Rating[]
+  Reply           Reply[]
+  ReplyReaction   ReplyReaction[]
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum ScanType {
+  MANGA
+  MANHUA
+  MANHWA
+}
+
+enum Status {
+  ONGOING
+  COMPLETED
+}
